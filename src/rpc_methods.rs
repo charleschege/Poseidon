@@ -1,6 +1,6 @@
 use core::fmt;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum RpcMethod {
     DeregisterNode,
     GetAccountInfo,

@@ -44,6 +44,12 @@ pub struct Message {
     pub instructions: Vec<CompiledInstruction>,
 }
 
+impl Default for Message {
+    fn default() -> Self {
+        Message::new()
+    }
+}
+
 impl Message {
     pub fn new() -> Self {
         Self {
@@ -232,6 +238,12 @@ pub struct Instruction {
     pub accounts: Vec<AccountMeta>,
     /// Opaque data passed to the program for its own interpretation.
     pub data: Vec<u8>,
+}
+
+impl Default for Instruction {
+    fn default() -> Self {
+        Instruction::new()
+    }
 }
 
 impl Instruction {
