@@ -14,6 +14,7 @@ pub type Base58SecretKey = String;
 pub type ProgramID = String;
 pub type TxPayer = String;
 pub type SeaHashMap = HashMap<&'static str, [u8; 32], BuildHasherDefault<SeaHasher>>;
+pub type GenericSeaHashMap<T, U> = HashMap<T, U, BuildHasherDefault<SeaHasher>>;
 pub type Base58Value<'a> = &'a str;
 
 pub const DEVNET: &str = "https://api.devnet.solana.com";
@@ -53,8 +54,8 @@ impl fmt::Debug for BlockHashData {
                 &format_args!(
                     "{} secs ago",
                     match elapsed {
-                        Ok(duration) => humantime::format_duration(duration).to_string(),
-                        Err(_) => "Error - FutureTime".to_string(),
+                        Ok(_) => "Error - FutureTime".to_string(),
+                        Err(duration) => humantime::format_duration(duration).to_string(),
                     }
                 ),
             )
