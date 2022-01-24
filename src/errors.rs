@@ -1,8 +1,11 @@
+use wasmium_errors::WasmiumError;
+
 pub type PoseidonResult<T> = core::result::Result<T, PoseidonError>;
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug)]
 pub enum PoseidonError {
     /// Error deserializing the TOML file to the specified data structure
+    #[cfg(feature = "smol_async_io")]
     TomlDeserError(String),
     /// An I/O error has occured
     IoError(std::io::ErrorKind),
@@ -13,16 +16,32 @@ pub enum PoseidonError {
     /// Unable to convert the provided data into a `[u8; 32]`
     ErrorConvertingToU832,
     SerdeJsonDeser(String),
+    ProgramIdNotFound,
+    PublicKeyNotFound,
+    BorshSerDeError(String),
+    WasmiumErrors(WasmiumError),
+    BincodeError(bincode::ErrorKind),
 }
 
-#[cfg(feature = "poseidon_io")]
+impl From<bincode::Error> for PoseidonError {
+    fn from(error: bincode::Error) -> Self {
+        PoseidonError::BincodeError(*error)
+    }
+}
+
+impl From<WasmiumError> for PoseidonError {
+    fn from(error: WasmiumError) -> Self {
+        PoseidonError::WasmiumErrors(error)
+    }
+}
+
+#[cfg(feature = "smol_async_io")]
 impl From<toml::de::Error> for PoseidonError {
     fn from(error: toml::de::Error) -> Self {
         PoseidonError::TomlDeserError(format!("{:?}", error))
     }
 }
 
-#[cfg(feature = "poseidon_io")]
 impl From<std::io::Error> for PoseidonError {
     fn from(io_error: std::io::Error) -> Self {
         PoseidonError::IoError(io_error.kind())
@@ -30,8 +49,8 @@ impl From<std::io::Error> for PoseidonError {
 }
 
 impl From<serde_json::Error> for PoseidonError {
-    fn from(derser_error: serde_json::Error) -> Self {
-        PoseidonError::SerdeJsonDeser(derser_error.to_string())
+    fn from(error: serde_json::Error) -> Self {
+        PoseidonError::SerdeJsonDeser(error.to_string())
     }
 }
 
