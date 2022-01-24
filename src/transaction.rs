@@ -1,5 +1,5 @@
-use crate::{Base58PublicKey, PoseidonSignature, RecentBlockHash};
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{PoseidonPublicKey, PoseidonSignature, RecentBlockHash};
+use borsh::BorshSerialize;
 use core::fmt;
 use serde::Serialize;
 
@@ -24,7 +24,7 @@ impl fmt::Debug for Transaction {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, BorshDeserialize, BorshSerialize, Serialize)]
+#[derive(PartialEq, Eq, Clone, BorshSerialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
     /// The message header, identifying signed and read-only `account_keys`
@@ -33,7 +33,7 @@ pub struct Message {
 
     /// All the account keys used by this transaction
     #[serde(with = "short_vec")]
-    pub account_keys: Vec<Base58PublicKey>,
+    pub account_keys: Vec<PoseidonPublicKey>,
 
     /// The id of a recent ledger entry.
     pub recent_blockhash: RecentBlockHash,
@@ -66,7 +66,7 @@ impl Message {
         self
     }
 
-    pub fn add_account_key(&mut self, public_key: Base58PublicKey) -> &mut Self {
+    pub fn add_account_key(&mut self, public_key: PoseidonPublicKey) -> &mut Self {
         self.account_keys.push(public_key);
 
         self
@@ -130,7 +130,7 @@ impl Message {
         self
     }
 
-    pub fn build(&mut self, program_id: Base58PublicKey) -> &mut Self {
+    pub fn build(&mut self, program_id: PoseidonPublicKey) -> &mut Self {
         // FIXME add support for add `program_id_index` for multiple `CompiledInstruction`s
         let account_keys_len = self.account_keys.len();
         self.account_keys.insert(account_keys_len, program_id);
@@ -162,7 +162,7 @@ impl fmt::Debug for Message {
     }
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone, BorshDeserialize, BorshSerialize, Serialize)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, BorshSerialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageHeader {
     /// The number of signatures required for this message to be considered valid. The
@@ -187,7 +187,7 @@ pub struct MessageHeader {
 /// construction of `Message`. Most users will not interact with it directly.
 ///
 /// [`Message`]: crate::message::Message
-#[derive(Debug, PartialEq, Eq, Clone, BorshDeserialize, BorshSerialize, Serialize)]
+#[derive(PartialEq, Eq, Clone, BorshSerialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 
 pub struct CompiledInstruction {
@@ -203,10 +203,20 @@ pub struct CompiledInstruction {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, BorshSerialize, BorshDeserialize)]
+impl fmt::Debug for CompiledInstruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CompiledInstruction")
+            .field("program_id_index", &self.program_id_index)
+            .field("accounts", &self.accounts)
+            .field("data", &blake3::hash(&self.data).to_hex())
+            .finish()
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, BorshSerialize, Serialize)]
 pub struct AccountMeta {
     /// An account's public key.
-    pub pubkey: Base58PublicKey,
+    pub pubkey: PoseidonPublicKey,
     /// True if an `Instruction` requires a `Transaction` signature matching `pubkey`.
     pub is_signer: bool,
     /// True if the account data or metadata may be mutated during program execution.
@@ -214,14 +224,14 @@ pub struct AccountMeta {
 }
 
 impl AccountMeta {
-    pub fn new(pubkey: Base58PublicKey, is_signer: bool) -> Self {
+    pub fn new(pubkey: PoseidonPublicKey, is_signer: bool) -> Self {
         Self {
             pubkey,
             is_signer,
             is_writable: true,
         }
     }
-    pub fn new_readonly(pubkey: Base58PublicKey, is_signer: bool) -> Self {
+    pub fn new_readonly(pubkey: PoseidonPublicKey, is_signer: bool) -> Self {
         Self {
             pubkey,
             is_signer,
@@ -230,10 +240,20 @@ impl AccountMeta {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, BorshSerialize, BorshDeserialize)]
+impl fmt::Debug for AccountMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AccountMeta")
+            .field("pubkey", &bs58::encode(&self.pubkey).into_string())
+            .field("is_signer", &self.is_signer)
+            .field("is_writable", &self.is_writable)
+            .finish()
+    }
+}
+
+#[derive(PartialEq, Clone, BorshSerialize, Serialize)]
 pub struct Instruction {
     /// Pubkey of the program that executes this instruction.
-    pub program_id: Base58PublicKey,
+    pub program_id: PoseidonPublicKey,
     /// Metadata describing accounts that should be passed to the program.
     pub accounts: Vec<AccountMeta>,
     /// Opaque data passed to the program for its own interpretation.
@@ -249,13 +269,13 @@ impl Default for Instruction {
 impl Instruction {
     pub fn new() -> Self {
         Self {
-            program_id: Base58PublicKey::default(),
+            program_id: [0_u8; 32],
             accounts: Vec::default(),
             data: Vec::default(),
         }
     }
 
-    pub fn add_program_id(&mut self, program_id: Base58PublicKey) -> &mut Self {
+    pub fn add_program_id(&mut self, program_id: PoseidonPublicKey) -> &mut Self {
         self.program_id = program_id;
 
         self
@@ -267,10 +287,8 @@ impl Instruction {
         self
     }
 
-    pub fn add_data<T: BorshSerialize>(&mut self, data: T) -> &mut Self {
-        let serialized_data = data.try_to_vec().unwrap(); //FIXME Handle error
-
-        self.data = serialized_data;
+    pub fn add_data(&mut self, instruction_data: &[u8]) -> &mut Self {
+        self.data = instruction_data.to_owned();
 
         self
     }
@@ -282,5 +300,15 @@ impl Instruction {
         self.accounts = unique_accounts;
 
         self
+    }
+}
+
+impl fmt::Debug for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Instruction")
+            .field("program_id", &bs58::encode(&self.program_id).into_string())
+            .field("accounts", &self.accounts)
+            .field("data", &blake3::hash(&self.data).to_hex())
+            .finish()
     }
 }
