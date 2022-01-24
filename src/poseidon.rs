@@ -1,16 +1,19 @@
 use crate::{
-    utils, Base58PublicKey, BlockHashData, PoseidonJsonValue, PoseidonResult,
-    RecentBlockHashNodeResponse, RecentBlockHashResponse, RpcClient, RpcMethod, SeaHashMap, DEVNET,
-    MAINNET_BETA, TESTNET,
+    utils, AccountMeta, Base58PublicKey, BlockHashData, GenericSeaHashMap, Instruction, Message,
+    PoseidonError, PoseidonJsonValue, PoseidonResult, RecentBlockHashNodeResponse,
+    RecentBlockHashResponse, RpcClient, RpcMethod, SeaHashMap, Transaction, DEVNET, MAINNET_BETA,
+    TESTNET,
 };
+use core::fmt;
+use generic_array::GenericArray;
 use wasmium_securemem::ProtectedEd25519KeyPair;
 
-#[derive(Debug)]
 pub struct Poseidon {
     ed25519_keypair: ProtectedEd25519KeyPair,
     public_keys: SeaHashMap,
     recent_blockhash: BlockHashData,
-    deploy_env: &'static str,
+    environment: &'static str,
+    instruction_data: Vec<u8>,
 }
 
 impl Poseidon {
@@ -19,11 +22,12 @@ impl Poseidon {
             ed25519_keypair,
             public_keys: SeaHashMap::default(),
             recent_blockhash: BlockHashData::default(),
-            deploy_env: DEVNET,
+            environment: DEVNET,
+            instruction_data: Vec::default(),
         }
     }
 
-    pub fn add_keys(
+    pub fn add_public_key(
         &mut self,
         key: &'static str,
         value: Base58PublicKey,
@@ -34,20 +38,35 @@ impl Poseidon {
         Ok(self)
     }
 
+    pub fn add_public_key_array(
+        &mut self,
+        key: &'static str,
+        public_key_array: [u8; 32],
+    ) -> &mut Self {
+        self.public_keys.insert(key, public_key_array);
+
+        self
+    }
+
+    pub fn add_data(&mut self, instruction_data: &[u8]) -> &mut Self {
+        self.instruction_data = instruction_data.to_owned();
+
+        self
+    }
     pub fn use_devnet(&mut self) -> &mut Self {
-        self.deploy_env = DEVNET;
+        self.environment = DEVNET;
 
         self
     }
 
     pub fn use_testnet(&mut self) -> &mut Self {
-        self.deploy_env = TESTNET;
+        self.environment = TESTNET;
 
         self
     }
 
     pub fn use_mainnet_beta(&mut self) -> &mut Self {
-        self.deploy_env = MAINNET_BETA;
+        self.environment = MAINNET_BETA;
 
         self
     }
@@ -58,14 +77,26 @@ impl Poseidon {
             .add_method(RpcMethod::GetRecentBlockhash)
             .to_json();
 
-        let response = RpcClient::new(self.deploy_env).add_body(body).send_sync()?;
-        let response: RecentBlockHashNodeResponse = serde_json::from_str(response.as_str()?)?;
-        let response: RecentBlockHashResponse = response.into();
-        let blockhash = utils::base58_to_u32_array(&response.blockhash)?;
+        let client_response = RpcClient::new(self.environment).add_body(body).clone();
 
-        self.recent_blockhash = BlockHashData::default().add_blockhash(blockhash).owned();
+        let client_response = client_response.send_sync()?;
 
-        Ok(self)
+        let rpc_node_response = client_response.as_str()?;
+
+        let deser_prepare = &mut serde_json::Deserializer::from_str(rpc_node_response);
+
+        let deser_response: Result<RecentBlockHashNodeResponse, _> =
+            serde_path_to_error::deserialize(deser_prepare);
+        match deser_response {
+            Ok(response) => {
+                let response: RecentBlockHashResponse = response.into();
+                let blockhash = utils::base58_to_u32_array(&response.blockhash)?;
+                self.recent_blockhash.add_blockhash(blockhash).owned();
+
+                Ok(self)
+            }
+            Err(err) => Err(PoseidonError::SerdeJsonDeser(format!("{:?}", err))),
+        }
     }
 
     pub fn get_recent_blockhash_value(&mut self) -> PoseidonResult<RecentBlockHashResponse> {
@@ -74,11 +105,114 @@ impl Poseidon {
             .add_method(RpcMethod::GetRecentBlockhash)
             .to_json();
 
-        let client_response = RpcClient::new(self.deploy_env).add_body(body).send_sync()?;
-        let deser_response: RecentBlockHashNodeResponse =
-            serde_json::from_str(client_response.as_str()?)?;
-        let response: RecentBlockHashResponse = deser_response.into();
+        let client_response = RpcClient::new(self.environment).add_body(body).clone();
 
-        Ok(response)
+        let client_response = client_response.send_sync()?;
+
+        let rpc_node_response = client_response.as_str()?;
+
+        let deser_prepare = &mut serde_json::Deserializer::from_str(rpc_node_response);
+
+        let deser_response: Result<RecentBlockHashNodeResponse, _> =
+            serde_path_to_error::deserialize(deser_prepare);
+        match deser_response {
+            Ok(response) => {
+                let response: RecentBlockHashResponse = response.into();
+                let blockhash = utils::base58_to_u32_array(&response.blockhash)?;
+                self.recent_blockhash.add_blockhash(blockhash).owned();
+
+                Ok(response)
+            }
+            Err(err) => Err(PoseidonError::SerdeJsonDeser(format!("{:?}", err))),
+        }
+    }
+    pub fn send_transaction(&self) -> PoseidonResult<()> {
+        let program_id = match self.public_keys.get("program_id") {
+            None => return Err(PoseidonError::ProgramIdNotFound),
+            Some(id) => id,
+        };
+
+        let mut instruction = Instruction::new();
+        instruction
+            .add_program_id(*program_id)
+            .add_account(AccountMeta::new(
+                self.ed25519_keypair.public_key().to_owned(),
+                true,
+            ))
+            .add_data(&self.instruction_data);
+
+        let mut message = Message::new();
+        message
+            .add_recent_blockhash(self.recent_blockhash.blockhash.to_owned())
+            .num_required_signatures(1)
+            .num_readonly_signed_accounts(0)
+            .num_readonly_unsigned_accounts(1)
+            .add_instruction(instruction)
+            .build(*program_id);
+
+        let encoded_message = bincode::serialize(&message)?;
+
+        let signature = self.ed25519_keypair.try_sign(&encoded_message)?;
+
+        let transaction = Transaction {
+            signatures: vec![GenericArray::clone_from_slice(&signature.to_bytes())],
+            message: message,
+        };
+
+        let serialized_tx = bincode::serialize(&transaction)?;
+        let base58_encoded_transaction = bs58::encode(&serialized_tx).into_string();
+
+        let body = PoseidonJsonValue::new()
+            .add_parameter("commitment", "finalized")
+            .add_method(RpcMethod::SendTransaction)
+            .add_encoded_data(&base58_encoded_transaction)
+            .to_json();
+
+        let client_response = RpcClient::new(self.environment).add_body(body).clone();
+
+        let client_response = client_response.send_sync()?;
+
+        let rpc_node_response = client_response.as_str()?;
+
+        //FIXME Deserialze into a transaction & error struct
+        dbg!(&rpc_node_response);
+
+        Ok(())
+    }
+}
+
+impl fmt::Debug for Poseidon {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Poseidon")
+            .field("ed25519_keypair", &self.ed25519_keypair)
+            .field("public_keys", &format_args!("{:?}", &self.public_keys))
+            .field("recent_blockhash", &self.recent_blockhash)
+            .field("environment", &self.environment)
+            .field(
+                "instruction_data",
+                &blake3::hash(&self.instruction_data).to_hex(),
+            )
+            .finish()
+    }
+}
+
+impl fmt::Display for Poseidon {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut base58_keys: GenericSeaHashMap<&str, String> = GenericSeaHashMap::default();
+
+        self.public_keys.iter().for_each(|(key, value)| {
+            base58_keys.insert(key, bs58::encode(value).into_string());
+        });
+
+        f.debug_struct("Poseidon")
+            .field("ed25519_keypair", &self.ed25519_keypair)
+            .field("public_keys", &base58_keys)
+            .field("recent_blockhash", &self.recent_blockhash)
+            .field("environment", &self.environment)
+            .field(
+                "instruction_data",
+                &blake3::hash(&self.instruction_data).to_hex(),
+            )
+            .finish()
     }
 }
