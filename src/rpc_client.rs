@@ -1,7 +1,7 @@
 use crate::PoseidonResult;
 use json::JsonValue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RpcClient<'a> {
     url: &'a str,
     headers: Vec<(String, String)>,
@@ -30,7 +30,7 @@ impl<'a> RpcClient<'a> {
     }
 
     pub fn send_sync(&self) -> PoseidonResult<minreq::Response> {
-        let mut request = minreq::post(self.url);
+        let mut request = minreq::post(self.url).with_body(self.body.to_string().as_str());
 
         for header in &self.headers {
             request = request.with_header(&header.0, &header.1);
