@@ -18,6 +18,8 @@ pub enum PoseidonError {
     SerdeJsonDeser(String),
     ProgramIdNotFound,
     PublicKeyNotFound,
+    PublicKeyNotFoundInMessageAccounts,
+    AccountIndexNotFoundInMessageAccounts,
     BorshSerDeError(String),
     WasmiumErrors(WasmiumError),
     BincodeError(bincode::ErrorKind),
