@@ -20,6 +20,8 @@ pub enum PoseidonError {
     PublicKeyNotFound,
     PublicKeyNotFoundInMessageAccounts,
     AccountIndexNotFoundInMessageAccounts,
+    MaxSeedLengthExceeded,
+    IllegalOwner,
     BorshSerDeError(String),
     WasmiumErrors(WasmiumError),
     BincodeError(bincode::ErrorKind),

@@ -20,7 +20,8 @@ pub type Base58Value<'a> = &'a str;
 pub const DEVNET: &str = "https://api.devnet.solana.com";
 pub const TESTNET: &str = "https://api.testnet.solana.com";
 pub const MAINNET_BETA: &str = "https://api.mainnet-beta.solana.com";
-
+pub const MAX_SEED_LEN: usize = 32;
+pub const PDA_MARKER: &[u8; 21] = b"ProgramDerivedAddress";
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlockHashData {
     timestamp: Tai64N,

@@ -13,3 +13,5 @@ pub fn base58_to_u32_array(value: Base58Value) -> PoseidonResult<[u8; 32]> {
 
     Ok(converted_value)
 }
+
+pub const SYSTEM_PROGRAM_ID: [u8; 32] = [0; 32];

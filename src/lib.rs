@@ -17,6 +17,7 @@ pub use poseidon::*;
 mod rpc_responses;
 pub use rpc_responses::*;
 pub mod utils;
+pub use utils::*;
 pub use wasmium_securemem::*;
 mod system_instruction;
 pub use system_instruction::*;

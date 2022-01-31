@@ -1,6 +1,6 @@
 use crate::{
     utils, AccountMeta, Base58PublicKey, BlockHashData, GenericSeaHashMap, Instruction, Message,
-    PoseidonError, PoseidonJsonValue, PoseidonPublicKey, PoseidonResult,
+    MessageBuilder, PdaBuilder, PoseidonError, PoseidonJsonValue, PoseidonResult,
     RecentBlockHashNodeResponse, RecentBlockHashResponse, RpcClient, RpcMethod, SeaHashMap,
     SystemInstruction, Transaction, DEVNET, MAINNET_BETA, TESTNET,
 };
@@ -25,6 +25,11 @@ impl Poseidon {
             environment: DEVNET,
             instruction_data: Vec::default(),
         }
+    }
+
+    /// Public key of the `ProtectedEd25519KeyPair`
+    pub fn protected_public_key(&self) -> [u8; 32] {
+        self.ed25519_keypair.public_key()
     }
 
     pub fn add_public_key(
@@ -126,97 +131,17 @@ impl Poseidon {
             Err(err) => Err(PoseidonError::SerdeJsonDeser(format!("{:?}", err))),
         }
     }
-    pub fn send_transaction(&self) -> PoseidonResult<()> {
-        let program_id = match self.public_keys.get("program_id") {
-            None => return Err(PoseidonError::ProgramIdNotFound),
-            Some(id) => id,
-        };
 
-        let mut instruction = Instruction::new();
-        instruction
-            .add_program_id(*program_id)
-            .add_account(AccountMeta::new(
-                self.ed25519_keypair.public_key().to_owned(),
-                true,
-            ))
-            .add_data(&self.instruction_data);
-
-        dbg!(&instruction);
+    pub fn create_account_with_seed(&self, pda_builder: PdaBuilder) -> PoseidonResult<()> {
+        let mut message_builder = MessageBuilder::new();
+        message_builder
+            .add_instruction(pda_builder.build()?)
+            .build();
 
         let mut message = Message::new();
         message
-            .add_recent_blockhash(self.recent_blockhash.blockhash.to_owned())
-            .num_required_signatures(1)
-            .num_readonly_signed_accounts(0)
-            .num_readonly_unsigned_accounts(1)
-            .add_instruction(instruction)
-            .build();
-
-        dbg!(&message);
-
-        let encoded_message = bincode::serialize(&message)?;
-
-        let signature = self.ed25519_keypair.try_sign(&encoded_message)?;
-
-        let transaction = Transaction {
-            signatures: vec![GenericArray::clone_from_slice(&signature.to_bytes())],
-            message: message,
-        };
-
-        let serialized_tx = bincode::serialize(&transaction)?;
-        let base58_encoded_transaction = bs58::encode(&serialized_tx).into_string();
-
-        let body = PoseidonJsonValue::new()
-            .add_parameter("commitment", "finalized")
-            .add_method(RpcMethod::SendTransaction)
-            .add_encoded_data(&base58_encoded_transaction)
-            .to_json();
-
-        let client_response = RpcClient::new(self.environment).add_body(body).clone();
-
-        let client_response = client_response.send_sync()?;
-
-        let rpc_node_response = client_response.as_str()?;
-
-        //FIXME Deserialze into a transaction & error struct
-        dbg!(&rpc_node_response);
-
-        Ok(())
-    }
-
-    pub fn create_account(&self, dest_public_key: PoseidonPublicKey) -> PoseidonResult<()> {
-        let public_key = self.ed25519_keypair.public_key().to_owned();
-
-        let keypair = Keypair::from_bytes(&KEYPAIR_BYTES).unwrap();
-        let public_key = keypair.public;
-        let bob_keypair = Keypair::from_bytes(&BOB_KEYPAIR).unwrap();
-        let bob_public_key = bob_keypair.public;
-        //FIXME move this to a system program const
-        let system_program = [0_u8; 32];
-        let system_instruction = SystemInstruction::CreateAccountWithSeed {
-            base: public_key.to_bytes(),
-            seed: "WASMIUM_WORKSPACE".to_owned(),
-            lamports: 7000000,
-            space: std::mem::size_of::<MyInstruction>() as u64,
-            owner: SYSTEM_PROGRAM_ID,
-        };
-
-        let instruction = Instruction {
-            program_id: SYSTEM_PROGRAM_ID,
-            accounts: vec![
-                AccountMeta::new(public_key.to_bytes(), true),
-                AccountMeta::new(bob_public_key.to_bytes(), false),
-                AccountMeta::new_readonly(public_key.to_bytes(), true),
-            ],
-            data: bincode::serialize(&system_instruction).unwrap(),
-        };
-
-        //dbg!(&instruction);
-
-        let mut message_builder = MessageBuilder::new();
-        message_builder.add_instruction(instruction).build();
-
-        let message = Message::new().build(message_builder)?;
+            .add_recent_blockhash(self.recent_blockhash.blockhash)
+            .build(message_builder)?;
 
         dbg!(&message);
 
