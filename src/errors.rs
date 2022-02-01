@@ -111,10 +111,8 @@ pub enum MinreqErrors {
     /// `usize`.
     MalformedContentLength,
     /// The response contains headers whose total size surpasses
-    /// [Request::with_max_headers_size](crate::request::Request::with_max_headers_size).
     HeadersOverflow,
     /// The response's status line length surpasses
-    /// [Request::with_max_status_line_size](crate::request::Request::with_max_status_line_length).
     StatusLineOverflow,
     /// [ToSocketAddrs](std::net::ToSocketAddrs) did not resolve to an
     /// address.
@@ -124,9 +122,7 @@ pub enum MinreqErrors {
     RedirectLocationMissing,
     /// The response redirections caused an infinite redirection loop.
     InfiniteRedirectionLoop,
-    /// Followed
-    /// [`max_redirections`](struct.Request.html#method.with_max_redirections)
-    /// redirections, won't follow any more.
+    /// Redirections, won't follow any more.
     TooManyRedirections,
     /// The response contained invalid UTF-8 where it should be valid
     /// (eg. headers), so the response cannot interpreted correctly.

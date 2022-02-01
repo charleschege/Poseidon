@@ -17,6 +17,8 @@ pub type SeaHashMap = HashMap<&'static str, [u8; 32], BuildHasherDefault<SeaHash
 pub type GenericSeaHashMap<T, U> = HashMap<T, U, BuildHasherDefault<SeaHasher>>;
 pub type Base58Value<'a> = &'a str;
 
+pub const LOCALNET: &str = "https://localhost:8899";
+pub const LOCALNET_ADDRESS: &str = "https://127.0.0.1:8899";
 pub const DEVNET: &str = "https://api.devnet.solana.com";
 pub const TESTNET: &str = "https://api.testnet.solana.com";
 pub const MAINNET_BETA: &str = "https://api.mainnet-beta.solana.com";

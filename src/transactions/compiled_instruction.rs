@@ -8,7 +8,7 @@ use serde::Serialize;
 /// which is the core of a Solana transaction. It is created during the
 /// construction of `Message`. Most users will not interact with it directly.
 ///
-/// [`Message`]: crate::message::Message
+/// [`Message`]: crate::Message
 #[derive(PartialEq, Eq, Clone, BorshSerialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 
