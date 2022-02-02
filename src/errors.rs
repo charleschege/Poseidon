@@ -1,3 +1,4 @@
+use crate::{Base58PublicKey, ProgramLogEntry};
 use wasmium_errors::WasmiumError;
 
 pub type PoseidonResult<T> = core::result::Result<T, PoseidonError>;
@@ -25,6 +26,15 @@ pub enum PoseidonError {
     BorshSerDeError(String),
     WasmiumErrors(WasmiumError),
     BincodeError(bincode::ErrorKind),
+    ParsedRpcResponseError {
+        jsonrpc: String,
+        id: u8,
+        json_error_code: i16,
+        message: String,
+        error: RpcResponseError,
+        accounts: Vec<Base58PublicKey>,
+        logs: Vec<ProgramLogEntry>,
+    },
 }
 
 impl From<bincode::Error> for PoseidonError {
@@ -155,4 +165,10 @@ pub enum MinreqErrors {
     /// please open an issue in the minreq crate repository, and include the string inside this
     /// error, as it can be used to locate the problem.
     Other(&'static str),
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+pub enum RpcResponseError {
+    CreateAccountWithSeedError,
+    Unspecified,
 }

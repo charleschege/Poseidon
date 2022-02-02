@@ -61,17 +61,15 @@ impl Message {
             .instructions
             .iter()
             .try_for_each(|instruction| {
-                let program_id_index =
-                    match self.account_keys.iter().enumerate().find(|(_, account)| {
-                        if *account == &instruction.program_id {
-                            true
-                        } else {
-                            false
-                        }
-                    }) {
-                        Some((index, _)) => index as u8,
-                        None => return Err(PoseidonError::ProgramIdNotFound),
-                    };
+                let program_id_index = match self
+                    .account_keys
+                    .iter()
+                    .enumerate()
+                    .find(|(_, account)| *account == &instruction.program_id)
+                {
+                    Some((index, _)) => index as u8,
+                    None => return Err(PoseidonError::ProgramIdNotFound),
+                };
 
                 // FIXME make this more efficient. do it in one loop or flat_map
                 let account_indexes = message_builder
@@ -82,15 +80,12 @@ impl Message {
                             .accounts
                             .iter()
                             .map(|account_meta| {
-                                match self.account_keys.iter().enumerate().find(
-                                    |(_, public_key)| {
-                                        if *public_key == &account_meta.pubkey {
-                                            true
-                                        } else {
-                                            false
-                                        }
-                                    },
-                                ) {
+                                match self
+                                    .account_keys
+                                    .iter()
+                                    .enumerate()
+                                    .find(|(_, public_key)| *public_key == &account_meta.pubkey)
+                                {
                                     Some((index, _)) => Ok(index as u8),
                                     None => Err(PoseidonError::PublicKeyNotFoundInMessageAccounts),
                                 }
@@ -104,7 +99,7 @@ impl Message {
                 let account_indexes: Vec<u8> = account_indexes.into_iter().flatten().collect();
 
                 self.instructions.push(CompiledInstruction {
-                    program_id_index: program_id_index,
+                    program_id_index,
                     accounts: account_indexes,
                     data: instruction.data.clone(),
                 });

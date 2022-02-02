@@ -1,8 +1,8 @@
 use crate::{
-    utils, Base58PublicKey, BlockHashData, GenericSeaHashMap, Message, MessageBuilder, PdaBuilder,
-    PoseidonError, PoseidonJsonValue, PoseidonResult, RecentBlockHashNodeResponse,
-    RecentBlockHashResponse, RpcClient, RpcMethod, SeaHashMap, Transaction, DEVNET, MAINNET_BETA,
-    TESTNET,
+    utils, Base58PublicKey, BlockHashData, CreateWithSeedResponseError, GenericSeaHashMap, Message,
+    MessageBuilder, PdaBuilder, PoseidonError, PoseidonJsonValue, PoseidonResult,
+    RecentBlockHashNodeResponse, RecentBlockHashResponse, RpcClient, RpcMethod, SeaHashMap,
+    Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
 };
 use core::fmt;
 use generic_array::GenericArray;
@@ -132,7 +132,11 @@ impl Poseidon {
         }
     }
 
-    pub fn create_account_with_seed(&self, pda_builder: PdaBuilder) -> PoseidonResult<()> {
+    pub fn create_account_with_seed(
+        &self,
+        pda_builder: PdaBuilder,
+    ) -> PoseidonResult<TxSignResponse> {
+        //-> PoseidonResult<CreateWithSeedResponse> {
         let mut message_builder = MessageBuilder::new();
         message_builder
             .add_instruction(pda_builder.build()?)
@@ -143,18 +147,14 @@ impl Poseidon {
             .add_recent_blockhash(self.recent_blockhash.blockhash)
             .build(message_builder)?;
 
-        dbg!(&message);
-
         let encoded_message = bincode::serialize(&message)?;
 
         let signature = self.ed25519_keypair.try_sign(&encoded_message)?;
 
         let transaction = Transaction {
             signatures: vec![GenericArray::clone_from_slice(&signature.to_bytes())],
-            message: message,
+            message,
         };
-
-        dbg!(&transaction);
 
         let serialized_tx = bincode::serialize(&transaction)?;
         let base58_encoded_transaction = bs58::encode(&serialized_tx).into_string();
@@ -170,11 +170,18 @@ impl Poseidon {
         let client_response = client_response.send_sync()?;
 
         let rpc_node_response = client_response.as_str()?;
+        let parsed_response: Result<TxSignResponse, serde_json::Error> =
+            serde_json::from_str(rpc_node_response);
 
-        //FIXME Deserialze into a transaction & error struct
-        dbg!(&rpc_node_response);
+        match parsed_response {
+            Ok(parsed_response) => Ok(parsed_response),
+            Err(_) => {
+                let parsed_response: CreateWithSeedResponseError =
+                    serde_json::from_str(rpc_node_response)?;
 
-        Ok(())
+                Err(parsed_response.into())
+            }
+        }
     }
 }
 
