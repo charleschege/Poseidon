@@ -1,8 +1,8 @@
 use crate::{
-    utils, Base58PublicKey, BlockHashData, CreateWithSeedResponseError, GenericSeaHashMap, Message,
+    utils, Base58PublicKey, BlockHashData, GenericSeaHashMap, InstructionRpcError, Message,
     MessageBuilder, PdaBuilder, PoseidonError, PoseidonJsonValue, PoseidonResult,
-    RecentBlockHashNodeResponse, RecentBlockHashResponse, RpcClient, RpcMethod, SeaHashMap,
-    Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
+    RecentBlockHashNodeResponse, RecentBlockHashResponse, RpcClient, RpcErrorHTTP, RpcMethod,
+    RpcResponseError, SeaHashMap, Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
 };
 use core::fmt;
 use generic_array::GenericArray;
@@ -136,10 +136,9 @@ impl Poseidon {
         &self,
         pda_builder: PdaBuilder,
     ) -> PoseidonResult<TxSignResponse> {
-        //-> PoseidonResult<CreateWithSeedResponse> {
         let mut message_builder = MessageBuilder::new();
         message_builder
-            .add_instruction(pda_builder.build()?)
+            .add_instruction(pda_builder.build_pda_instruction()?)
             .build();
 
         let mut message = Message::new();
@@ -170,16 +169,78 @@ impl Poseidon {
         let client_response = client_response.send_sync()?;
 
         let rpc_node_response = client_response.as_str()?;
+
         let parsed_response: Result<TxSignResponse, serde_json::Error> =
             serde_json::from_str(rpc_node_response);
 
         match parsed_response {
             Ok(parsed_response) => Ok(parsed_response),
             Err(_) => {
-                let parsed_response: CreateWithSeedResponseError =
-                    serde_json::from_str(rpc_node_response)?;
+                let parsed_response: RpcErrorHTTP = serde_json::from_str(rpc_node_response)?;
 
-                Err(parsed_response.into())
+                let json_crate_parsed_response = json::parse(&rpc_node_response)?;
+                let mut instruction_error_parser = InstructionRpcError::new();
+                instruction_error_parser.parse(json_crate_parsed_response);
+
+                let mut rpc_response_error = RpcResponseError::new();
+                rpc_response_error
+                    .add_general_error(parsed_response)
+                    .add_instruction_error(instruction_error_parser);
+                Err(rpc_response_error.into())
+            }
+        }
+    }
+
+    pub fn send_transaction(
+        &self,
+        message_builder: MessageBuilder,
+    ) -> PoseidonResult<TxSignResponse> {
+        let mut message = Message::new();
+        message
+            .add_recent_blockhash(self.recent_blockhash.blockhash)
+            .build(message_builder)?;
+
+        let encoded_message = bincode::serialize(&message)?;
+
+        let signature = self.ed25519_keypair.try_sign(&encoded_message)?;
+
+        let transaction = Transaction {
+            signatures: vec![GenericArray::clone_from_slice(&signature.to_bytes())],
+            message,
+        };
+
+        let serialized_tx = bincode::serialize(&transaction)?;
+        let base58_encoded_transaction = bs58::encode(&serialized_tx).into_string();
+
+        let body = PoseidonJsonValue::new()
+            .add_parameter("commitment", "finalized")
+            .add_method(RpcMethod::SendTransaction)
+            .add_encoded_data(&base58_encoded_transaction)
+            .to_json();
+
+        let client_response = RpcClient::new(self.environment).add_body(body).clone();
+
+        let client_response = client_response.send_sync()?;
+
+        let rpc_node_response = client_response.as_str()?;
+
+        let parsed_response: Result<TxSignResponse, serde_json::Error> =
+            serde_json::from_str(rpc_node_response);
+
+        match parsed_response {
+            Ok(parsed_response) => Ok(parsed_response),
+            Err(_) => {
+                let parsed_response: RpcErrorHTTP = serde_json::from_str(rpc_node_response)?;
+
+                let json_crate_parsed_response = json::parse(&rpc_node_response)?;
+                let mut instruction_error_parser = InstructionRpcError::new();
+                instruction_error_parser.parse(json_crate_parsed_response);
+
+                let mut rpc_response_error = RpcResponseError::new();
+                rpc_response_error
+                    .add_general_error(parsed_response)
+                    .add_instruction_error(instruction_error_parser);
+                Err(rpc_response_error.into())
             }
         }
     }

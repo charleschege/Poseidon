@@ -12,6 +12,7 @@ pub type PoseidonSignature = GenericArray<u8, U64>;
 pub type Base58PublicKey = String;
 pub type Base58SecretKey = String;
 pub type Base58TxSignature = String;
+pub type BorrowedBase58PublicKey<'pn> = &'pn str;
 pub type ProgramID = String;
 pub type TxPayer = String;
 pub type SeaHashMap = HashMap<&'static str, [u8; 32], BuildHasherDefault<SeaHasher>>;

@@ -31,6 +31,10 @@ impl<'pn> PdaBuilder<'pn> {
         }
     }
 
+    pub fn pda_public_key(&self) -> PoseidonPublicKey {
+        self.to_public_key
+    }
+
     pub fn from(&mut self, public_key: PoseidonPublicKey) -> &mut Self {
         self.from_public_key = public_key;
 
@@ -79,29 +83,7 @@ impl<'pn> PdaBuilder<'pn> {
         self
     }
 
-    pub fn build(&self) -> PoseidonResult<Instruction> {
-        let system_instruction = SystemInstruction::CreateAccountWithSeed {
-            base: self.base,
-            seed: self.seed.to_owned(),
-            lamports: self.lamports,
-            space: self.space,
-            owner: self.owner,
-        };
-
-        let data = bincode::serialize(&system_instruction)?;
-
-        Ok(Instruction {
-            program_id: crate::SYSTEM_PROGRAM_ID,
-            accounts: vec![
-                AccountMeta::new(self.from_public_key, true),
-                AccountMeta::new(self.to_public_key, false),
-                AccountMeta::new_readonly(self.from_public_key, true),
-            ],
-            data,
-        })
-    }
-
-    pub fn create_pda_from_owner(&mut self) -> PoseidonResult<&mut Self> {
+    pub fn derive_public_key(&mut self) -> PoseidonResult<&mut Self> {
         if self.seed.len() > MAX_SEED_LEN {
             return Err(PoseidonError::MaxSeedLengthExceeded);
         }
@@ -124,6 +106,28 @@ impl<'pn> PdaBuilder<'pn> {
         self.to_public_key = sha256_pda;
 
         Ok(self)
+    }
+
+    pub fn build_pda_instruction(&self) -> PoseidonResult<Instruction> {
+        let system_instruction = SystemInstruction::CreateAccountWithSeed {
+            base: self.base,
+            seed: self.seed.to_owned(),
+            lamports: self.lamports,
+            space: self.space,
+            owner: self.owner,
+        };
+
+        let data = bincode::serialize(&system_instruction)?;
+
+        Ok(Instruction {
+            program_id: crate::SYSTEM_PROGRAM_ID,
+            accounts: vec![
+                AccountMeta::new(self.from_public_key, true),
+                AccountMeta::new(self.to_public_key, false),
+                AccountMeta::new_readonly(self.from_public_key, true),
+            ],
+            data,
+        })
     }
 }
 

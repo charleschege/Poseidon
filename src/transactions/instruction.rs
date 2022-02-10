@@ -1,4 +1,4 @@
-use crate::{AccountMeta, PoseidonPublicKey};
+use crate::{utils, AccountMeta, BorrowedBase58PublicKey, PoseidonPublicKey, PoseidonResult};
 use borsh::BorshSerialize;
 use core::fmt;
 use itertools::Itertools;
@@ -35,6 +35,17 @@ impl Instruction {
         self
     }
 
+    pub fn add_base58_program_id(
+        &mut self,
+        program_id: BorrowedBase58PublicKey,
+    ) -> PoseidonResult<&mut Self> {
+        let program_id = utils::base58_to_u32_array(&program_id)?;
+
+        self.program_id = program_id;
+
+        Ok(self)
+    }
+
     pub fn add_account(&mut self, account_meta: AccountMeta) -> &mut Self {
         self.accounts.push(account_meta);
 
@@ -46,11 +57,20 @@ impl Instruction {
 
         self
     }
+
     pub fn build(&mut self) -> &mut Self {
         let unique_accounts = self.accounts.clone().into_iter().unique().collect_vec();
 
         self.accounts = unique_accounts;
 
+        self
+    }
+
+    pub fn borrow(&self) -> &Self {
+        self
+    }
+
+    pub fn take(self) -> Self {
         self
     }
 }

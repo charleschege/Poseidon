@@ -1,6 +1,7 @@
 use crate::{AccountMeta, Instruction, PoseidonPublicKey};
 use core::fmt;
 
+#[derive(Clone)]
 pub struct MessageBuilder {
     pub(crate) instructions: Vec<Instruction>,
     pub(crate) program_ids: Vec<AccountMeta>,
@@ -135,7 +136,13 @@ impl fmt::Debug for MessageBuilder {
                 "num_readonly_unsigned_accounts",
                 &self.num_readonly_unsigned_accounts,
             )
-            .field("payer", &self.payer)
+            .field(
+                "payer",
+                &match self.payer {
+                    Some(payer) => Some(bs58::encode(payer).into_string()),
+                    None => None,
+                },
+            )
             .finish()
     }
 }

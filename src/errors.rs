@@ -1,4 +1,6 @@
 use crate::{Base58PublicKey, ProgramLogEntry};
+use json::JsonValue;
+use serde::{Deserialize, Serialize};
 use wasmium_errors::WasmiumError;
 
 pub type PoseidonResult<T> = core::result::Result<T, PoseidonError>;
@@ -16,6 +18,7 @@ pub enum PoseidonError {
     InvalidBase58ForPublickKey,
     /// Unable to convert the provided data into a `[u8; 32]`
     ErrorConvertingToU832,
+    Json(json::JsonError),
     SerdeJsonDeser(String),
     ProgramIdNotFound,
     PublicKeyNotFound,
@@ -26,15 +29,255 @@ pub enum PoseidonError {
     BorshSerDeError(String),
     WasmiumErrors(WasmiumError),
     BincodeError(bincode::ErrorKind),
-    ParsedRpcResponseError {
-        jsonrpc: String,
-        id: u8,
-        json_error_code: i16,
-        message: String,
-        error: RpcResponseError,
-        accounts: Vec<Base58PublicKey>,
-        logs: Vec<ProgramLogEntry>,
-    },
+    ParsedRpcResponseError(RpcResponseError),
+}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RpcResponseError {
+    jsonrpc: String,
+    id: u8,
+    error_code: i16,
+    message: String,
+    accounts: Vec<Base58PublicKey>,
+    logs: Vec<ProgramLogEntry>,
+    instruction_error: InstructionRpcError,
+}
+
+impl RpcResponseError {
+    pub fn new() -> Self {
+        RpcResponseError {
+            jsonrpc: String::default(),
+            id: u8::default(),
+            error_code: i16::default(),
+            message: String::default(),
+            accounts: Vec::default(),
+            logs: Vec::default(),
+            instruction_error: InstructionRpcError::new(),
+        }
+    }
+    pub fn add_general_error(&mut self, error: RpcErrorHTTP) -> &mut RpcResponseError {
+        let accounts = match error.error.data.accounts {
+            Some(collection) => collection,
+            None => Vec::default(),
+        };
+
+        self.jsonrpc = error.jsonrpc;
+        self.id = error.id;
+        self.error_code = error.error.code;
+        self.message = error.error.message;
+        self.accounts = accounts;
+        self.logs = error.error.data.logs;
+        self.instruction_error = InstructionRpcError::new();
+        self
+    }
+
+    pub fn add_instruction_error(
+        &mut self,
+        instruction_error: InstructionRpcError,
+    ) -> &mut RpcResponseError {
+        self.instruction_error = instruction_error;
+
+        self
+    }
+}
+
+impl From<RpcResponseError> for PoseidonError {
+    fn from(error: RpcResponseError) -> Self {
+        PoseidonError::ParsedRpcResponseError(error)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RpcErrorHTTP {
+    jsonrpc: String,
+    id: u8,
+    error: RpcReponseError,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RpcReponseError {
+    code: i16,
+    message: String,
+    data: RpcErrorData,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct RpcErrorData {
+    accounts: Option<Vec<String>>,
+    logs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default, Serialize)]
+
+pub struct InstructionError {
+    instruction_error: ProgramError,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialOrd, Ord, PartialEq, Serialize)]
+pub enum ProgramError {
+    /// Allows on-chain programs to implement program-specific error types and see them returned
+    /// by the Solana runtime. A program-specific error may be any type that is represented as
+    /// or serialized to a u32 integer.
+    Custom(u32),
+    /// The arguments provided to a program instruction where invalid
+    InvalidArgument,
+    /// An instruction's data contents was invalid
+    InvalidInstructionData,
+    /// An account's data contents was invalid
+    InvalidAccountData,
+    /// An account's data was too small
+    AccountDataTooSmall,
+    /// An account's balance was too small to complete the instruction
+    InsufficientFunds,
+    /// The account did not have the expected program id
+    IncorrectProgramId,
+    /// A signature was required but not found
+    MissingRequiredSignature,
+    /// An initialize instruction was sent to an account that has already been initialized
+    AccountAlreadyInitialized,
+    /// An attempt to operate on an account that hasn't been initialized
+    UninitializedAccount,
+    /// The instruction expected additional account keys
+    NotEnoughAccountKeys,
+    /// Failed to borrow a reference to account data, already borrowed
+    AccountBorrowFailed,
+    /// Length of the seed is too long for address generation
+    MaxSeedLengthExceeded,
+    /// Provided seeds do not result in a valid address
+    InvalidSeeds,
+    /// IO Error
+    BorshIoError(String),
+    /// An account does not have enough lamports to be rent-exempt
+    AccountNotRentExempt,
+    /// Unsupported sysvar
+    UnsupportedSysvar,
+    /// Provided owner is not allowed
+    IllegalOwner,
+    /// Requested account data allocation exceeded the accounts data budget
+    AccountsDataBudgetExceeded,
+    /// Could not parse the custom error into a `u32`
+    ErrorParsingCusomErrorToU32(String),
+    /// The error could not be parsed properly
+    UnspecifiedError,
+}
+
+impl From<&str> for ProgramError {
+    fn from(error: &str) -> Self {
+        match error {
+            "InvalidArgument" => ProgramError::InvalidArgument,
+            "InvalidInstructionData" => ProgramError::InvalidInstructionData,
+            "InvalidAccountData" => ProgramError::InvalidAccountData,
+            "AccountDataTooSmall" => ProgramError::AccountDataTooSmall,
+            "InsufficientFunds" => ProgramError::InsufficientFunds,
+            "IncorrectProgramId" => ProgramError::IncorrectProgramId,
+            "MissingRequiredSignature" => ProgramError::MissingRequiredSignature,
+            "AccountAlreadyInitialized" => ProgramError::AccountAlreadyInitialized,
+            "UninitializedAccount" => ProgramError::UninitializedAccount,
+            "NotEnoughAccountKeys" => ProgramError::NotEnoughAccountKeys,
+            "AccountBorrowFailed" => ProgramError::AccountBorrowFailed,
+            "MaxSeedLengthExceeded" => ProgramError::MaxSeedLengthExceeded,
+            "InvalidSeeds" => ProgramError::InvalidSeeds,
+            "AccountNotRentExempt" => ProgramError::AccountNotRentExempt,
+            "UnsupportedSysvar" => ProgramError::UnsupportedSysvar,
+            "IllegalOwner" => ProgramError::IllegalOwner,
+            "AccountsDataBudgetExceeded" => ProgramError::AccountsDataBudgetExceeded,
+            _error if error.contains("Custom(") => {
+                let chunks = error.split("(").collect::<Vec<&str>>();
+
+                let error_code = chunks[1].replace(")", "");
+                let error_code = error_code.trim_start_matches("0x");
+
+                match error_code.parse::<u32>() {
+                    Ok(custom_code) => ProgramError::Custom(custom_code),
+                    Err(error) => ProgramError::ErrorParsingCusomErrorToU32(error.to_string()),
+                }
+            }
+            _error if error.contains("BorshIoError") => {
+                // FIXME Check if escaped string is a problem
+                let chunks = error.split("(").collect::<Vec<&str>>();
+
+                let error_code = chunks[1].replace(")", "");
+                let error_code = error_code.replace("\"", "");
+
+                ProgramError::BorshIoError(error_code)
+            }
+            _ => ProgramError::UnspecifiedError,
+        }
+    }
+}
+
+impl Default for ProgramError {
+    fn default() -> Self {
+        ProgramError::UnspecifiedError
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct InstructionRpcError {
+    pub custom_code: u32,
+    pub instruction_error: ProgramError,
+}
+
+impl InstructionRpcError {
+    pub fn new() -> Self {
+        InstructionRpcError {
+            custom_code: u32::default(),
+            instruction_error: ProgramError::UnspecifiedError,
+        }
+    }
+
+    pub fn parse(&mut self, instruction_error_value: JsonValue) -> &mut Self {
+        match instruction_error_value {
+            JsonValue::Object(object) => {
+                if let Some(error_object) = object.get("error") {
+                    match error_object {
+                        JsonValue::Object(object) => {
+                            if let Some(data_object) = object.get("data") {
+                                match data_object {
+                                    JsonValue::Object(found_data_object) => {
+                                        if let Some(err_object) = found_data_object.get("err") {
+                                            match err_object {
+                                                JsonValue::Object(found_err_object) => {
+                                                    if let Some(err_object) =
+                                                        found_err_object.get("InstructionError")
+                                                    {
+                                                        match err_object {
+                                                            JsonValue::Array(found_err_object) => {
+                                                                if let Some(custom_code) =
+                                                                    found_err_object[0].as_u32()
+                                                                {
+                                                                    self.custom_code = custom_code;
+                                                                } else {
+                                                                }
+
+                                                                if let Some(instruction_enum) =
+                                                                    found_err_object[1].as_str()
+                                                                {
+                                                                    self.instruction_error =
+                                                                        instruction_enum.into();
+                                                                } else {
+                                                                }
+                                                            }
+                                                            _ => {}
+                                                        }
+                                                    }
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        self
+    }
 }
 
 impl From<bincode::Error> for PoseidonError {
@@ -59,6 +302,12 @@ impl From<toml::de::Error> for PoseidonError {
 impl From<std::io::Error> for PoseidonError {
     fn from(io_error: std::io::Error) -> Self {
         PoseidonError::IoError(io_error.kind())
+    }
+}
+
+impl From<json::JsonError> for PoseidonError {
+    fn from(error: json::JsonError) -> Self {
+        PoseidonError::Json(error)
     }
 }
 
@@ -165,10 +414,4 @@ pub enum MinreqErrors {
     /// please open an issue in the minreq crate repository, and include the string inside this
     /// error, as it can be used to locate the problem.
     Other(&'static str),
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
-pub enum RpcResponseError {
-    CreateAccountWithSeedError,
-    Unspecified,
 }
