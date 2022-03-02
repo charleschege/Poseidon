@@ -1,8 +1,8 @@
 use crate::{
-    utils, Base58PublicKey, BlockHashData, GenericSeaHashMap, InstructionRpcError, Message,
-    MessageBuilder, PdaBuilder, PoseidonError, PoseidonJsonValue, PoseidonResult,
-    RecentBlockHashNodeResponse, RecentBlockHashResponse, RpcClient, RpcErrorHTTP, RpcMethod,
-    RpcResponseError, SeaHashMap, Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
+    utils, Base58PublicKey, BlockHashData, GenericSeaHashMap, Message, MessageBuilder, PdaBuilder,
+    PoseidonError, PoseidonJsonValue, PoseidonResult, RecentBlockHashNodeResponse,
+    RecentBlockHashResponse, RpcClient, RpcErrorHTTP, RpcMethod, RpcResponseError, SeaHashMap,
+    Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
 };
 use core::fmt;
 use generic_array::GenericArray;
@@ -178,14 +178,8 @@ impl Poseidon {
             Err(_) => {
                 let parsed_response: RpcErrorHTTP = serde_json::from_str(rpc_node_response)?;
 
-                let json_crate_parsed_response = json::parse(&rpc_node_response)?;
-                let mut instruction_error_parser = InstructionRpcError::new();
-                instruction_error_parser.parse(json_crate_parsed_response);
-
                 let mut rpc_response_error = RpcResponseError::new();
-                rpc_response_error
-                    .add_general_error(parsed_response)
-                    .add_instruction_error(instruction_error_parser);
+                rpc_response_error.transform(parsed_response);
                 Err(rpc_response_error.into())
             }
         }
@@ -209,6 +203,8 @@ impl Poseidon {
             message,
         };
 
+        dbg!(&transaction);
+
         let serialized_tx = bincode::serialize(&transaction)?;
         let base58_encoded_transaction = bs58::encode(&serialized_tx).into_string();
 
@@ -224,6 +220,8 @@ impl Poseidon {
 
         let rpc_node_response = client_response.as_str()?;
 
+        dbg!(&rpc_node_response);
+
         let parsed_response: Result<TxSignResponse, serde_json::Error> =
             serde_json::from_str(rpc_node_response);
 
@@ -232,14 +230,8 @@ impl Poseidon {
             Err(_) => {
                 let parsed_response: RpcErrorHTTP = serde_json::from_str(rpc_node_response)?;
 
-                let json_crate_parsed_response = json::parse(&rpc_node_response)?;
-                let mut instruction_error_parser = InstructionRpcError::new();
-                instruction_error_parser.parse(json_crate_parsed_response);
-
                 let mut rpc_response_error = RpcResponseError::new();
-                rpc_response_error
-                    .add_general_error(parsed_response)
-                    .add_instruction_error(instruction_error_parser);
+                rpc_response_error.transform(parsed_response);
                 Err(rpc_response_error.into())
             }
         }

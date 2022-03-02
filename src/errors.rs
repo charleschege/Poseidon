@@ -1,6 +1,7 @@
-use crate::{Base58PublicKey, ProgramLogEntry};
-use json::JsonValue;
+use crate::{Base58PublicKey, PoseidonValue, ProgramLogEntry};
 use serde::{Deserialize, Serialize};
+use serde_json::value::Value;
+use std::collections::HashMap;
 use wasmium_errors::WasmiumError;
 
 pub type PoseidonResult<T> = core::result::Result<T, PoseidonError>;
@@ -31,7 +32,7 @@ pub enum PoseidonError {
     BincodeError(bincode::ErrorKind),
     ParsedRpcResponseError(RpcResponseError),
 }
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RpcResponseError {
     jsonrpc: String,
     id: u8,
@@ -39,7 +40,9 @@ pub struct RpcResponseError {
     message: String,
     accounts: Vec<Base58PublicKey>,
     logs: Vec<ProgramLogEntry>,
-    instruction_error: InstructionRpcError,
+    instruction_error: u32,
+    custom_errors: HashMap<String, PoseidonValue>,
+    units_consumed: u64,
 }
 
 impl RpcResponseError {
@@ -51,14 +54,50 @@ impl RpcResponseError {
             message: String::default(),
             accounts: Vec::default(),
             logs: Vec::default(),
-            instruction_error: InstructionRpcError::new(),
+            instruction_error: u32::default(),
+            custom_errors: HashMap::default(),
+            units_consumed: u64::default(),
         }
     }
-    pub fn add_general_error(&mut self, error: RpcErrorHTTP) -> &mut RpcResponseError {
+    pub fn transform(&mut self, error: RpcErrorHTTP) -> &mut RpcResponseError {
         let accounts = match error.error.data.accounts {
             Some(collection) => collection,
             None => Vec::default(),
         };
+
+        let instruction_error = match &error.error.data.err.instruction_error[0] {
+            Value::Number(value) => match value.as_u64() {
+                Some(value) => value as u32,
+                None => 0, //TODO Log All Errors as part of telemetry
+            },
+            _ => 0,
+        };
+
+        let raw_custom_error = &error.error.data.err.instruction_error[1];
+
+        match raw_custom_error {
+            Value::Object(values) => {
+                values.iter().for_each(|(key, value)| {
+                    let poseidon_value = match value {
+                        Value::Number(inner_value) => match inner_value.as_u64() {
+                            None => PoseidonValue::InvalidValue(value.to_string()),
+                            Some(data) => PoseidonValue::Number(data as u8),
+                        },
+
+                        Value::String(inner_value) => PoseidonValue::String(inner_value.to_owned()),
+
+                        _ => PoseidonValue::InvalidValue(value.to_string()),
+                    };
+                    self.custom_errors.insert(key.to_owned(), poseidon_value);
+                });
+            }
+            _ => {
+                self.custom_errors.insert(
+                    "InvalidCustomError".to_owned(),
+                    PoseidonValue::InvalidValue(raw_custom_error.to_string()),
+                );
+            }
+        }
 
         self.jsonrpc = error.jsonrpc;
         self.id = error.id;
@@ -66,16 +105,7 @@ impl RpcResponseError {
         self.message = error.error.message;
         self.accounts = accounts;
         self.logs = error.error.data.logs;
-        self.instruction_error = InstructionRpcError::new();
-        self
-    }
-
-    pub fn add_instruction_error(
-        &mut self,
-        instruction_error: InstructionRpcError,
-    ) -> &mut RpcResponseError {
         self.instruction_error = instruction_error;
-
         self
     }
 }
@@ -104,12 +134,16 @@ pub struct RpcReponseError {
 pub struct RpcErrorData {
     accounts: Option<Vec<String>>,
     logs: Vec<String>,
+    #[serde(rename = "unitsConsumed")]
+    units_consumed: u64,
+    err: InstructionError,
 }
 
 #[derive(Debug, Clone, Deserialize, Default, Serialize)]
 
 pub struct InstructionError {
-    instruction_error: ProgramError,
+    #[serde(rename = "InstructionError")]
+    instruction_error: Vec<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialOrd, Ord, PartialEq, Serialize)]
@@ -208,75 +242,6 @@ impl From<&str> for ProgramError {
 impl Default for ProgramError {
     fn default() -> Self {
         ProgramError::UnspecifiedError
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct InstructionRpcError {
-    pub custom_code: u32,
-    pub instruction_error: ProgramError,
-}
-
-impl InstructionRpcError {
-    pub fn new() -> Self {
-        InstructionRpcError {
-            custom_code: u32::default(),
-            instruction_error: ProgramError::UnspecifiedError,
-        }
-    }
-
-    pub fn parse(&mut self, instruction_error_value: JsonValue) -> &mut Self {
-        match instruction_error_value {
-            JsonValue::Object(object) => {
-                if let Some(error_object) = object.get("error") {
-                    match error_object {
-                        JsonValue::Object(object) => {
-                            if let Some(data_object) = object.get("data") {
-                                match data_object {
-                                    JsonValue::Object(found_data_object) => {
-                                        if let Some(err_object) = found_data_object.get("err") {
-                                            match err_object {
-                                                JsonValue::Object(found_err_object) => {
-                                                    if let Some(err_object) =
-                                                        found_err_object.get("InstructionError")
-                                                    {
-                                                        match err_object {
-                                                            JsonValue::Array(found_err_object) => {
-                                                                if let Some(custom_code) =
-                                                                    found_err_object[0].as_u32()
-                                                                {
-                                                                    self.custom_code = custom_code;
-                                                                } else {
-                                                                }
-
-                                                                if let Some(instruction_enum) =
-                                                                    found_err_object[1].as_str()
-                                                                {
-                                                                    self.instruction_error =
-                                                                        instruction_enum.into();
-                                                                } else {
-                                                                }
-                                                            }
-                                                            _ => {}
-                                                        }
-                                                    }
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        self
     }
 }
 
