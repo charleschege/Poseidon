@@ -1,12 +1,12 @@
 use crate::{
     utils, AccountData, Base58PublicKey, BlockHashData, GenericSeaHashMap, Message, MessageBuilder,
-    PdaBuilder, PoseidonError, PoseidonJsonValue, PoseidonResult, RecentBlockHashNodeResponse,
-    RecentBlockHashResponse, RpcAccountData, RpcClient, RpcErrorHTTP, RpcMethod, RpcResponseError,
-    SeaHashMap, Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
+    PdaBuilder, PoseidonError, PoseidonJsonValue, PoseidonPublicKey, PoseidonResult,
+    ProtectedEd25519KeyPair, RecentBlockHashNodeResponse, RecentBlockHashResponse, RpcAccountData,
+    RpcClient, RpcErrorHTTP, RpcMethod, RpcResponseError, SeaHashMap, Transaction, TxSignResponse,
+    DEVNET, MAINNET_BETA, TESTNET,
 };
 use core::fmt;
 use generic_array::GenericArray;
-use wasmium_securemem::ProtectedEd25519KeyPair;
 
 pub struct Poseidon {
     ed25519_keypair: ProtectedEd25519KeyPair,
@@ -25,6 +25,16 @@ impl Poseidon {
             environment: DEVNET,
             instruction_data: Vec::default(),
         }
+    }
+
+    pub fn zero_init(public_key: PoseidonPublicKey) -> PoseidonResult<Self> {
+        Ok(Poseidon {
+            ed25519_keypair: ProtectedEd25519KeyPair::zero_init(public_key)?,
+            public_keys: SeaHashMap::default(),
+            recent_blockhash: BlockHashData::default(),
+            environment: DEVNET,
+            instruction_data: Vec::default(),
+        })
     }
 
     /// Public key of the `ProtectedEd25519KeyPair`
