@@ -1,8 +1,8 @@
 use crate::{
-    utils, Base58PublicKey, BlockHashData, GenericSeaHashMap, Message, MessageBuilder, PdaBuilder,
-    PoseidonError, PoseidonJsonValue, PoseidonResult, RecentBlockHashNodeResponse,
-    RecentBlockHashResponse, RpcClient, RpcErrorHTTP, RpcMethod, RpcResponseError, SeaHashMap,
-    Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
+    utils, AccountData, Base58PublicKey, BlockHashData, GenericSeaHashMap, Message, MessageBuilder,
+    PdaBuilder, PoseidonError, PoseidonJsonValue, PoseidonResult, RecentBlockHashNodeResponse,
+    RecentBlockHashResponse, RpcAccountData, RpcClient, RpcErrorHTTP, RpcMethod, RpcResponseError,
+    SeaHashMap, Transaction, TxSignResponse, DEVNET, MAINNET_BETA, TESTNET,
 };
 use core::fmt;
 use generic_array::GenericArray;
@@ -235,6 +235,26 @@ impl Poseidon {
                 Err(rpc_response_error.into())
             }
         }
+    }
+
+    pub fn get_account_data(&self, account_target: [u8; 32]) -> PoseidonResult<AccountData> {
+        let bs58_account_target = bs58::encode(&account_target).into_string();
+
+        let body = PoseidonJsonValue::new()
+            .add_parameter("encoding", "base58")
+            .add_method(RpcMethod::GetAccountInfo)
+            .add_encoded_data(&bs58_account_target)
+            .to_json();
+
+        let client_response = RpcClient::new(self.environment).add_body(body).clone();
+
+        let client_response = client_response.send_sync()?;
+
+        let rpc_node_response = client_response.as_str()?;
+
+        let parsed_response: RpcAccountData = serde_json::from_str(rpc_node_response)?;
+
+        Ok(parsed_response.into())
     }
 }
 

@@ -16,7 +16,7 @@ pub enum PoseidonError {
     /// A HTTP error occured
     HTTPError(MinreqErrors),
     /// Unable to decode public key from provided base58 String
-    InvalidBase58ForPublickKey,
+    InvalidBase58ForPublicKey,
     /// Unable to convert the provided data into a `[u8; 32]`
     ErrorConvertingToU832,
     Json(json::JsonError),
@@ -31,6 +31,10 @@ pub enum PoseidonError {
     WasmiumErrors(WasmiumError),
     BincodeError(bincode::ErrorKind),
     ParsedRpcResponseError(RpcResponseError),
+    /// Error when converting a `Vec<u8>` to a `[u8; 32]`
+    InvalidVec4u8ArrayConversion,
+    /// Error decoding the Base58 value to a vec
+    InvalidBase58ToVec,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RpcResponseError {
