@@ -1,4 +1,4 @@
-use crate::{utils, AccountMeta, BorrowedBase58PublicKey, PoseidonPublicKey, PoseidonResult};
+use crate::{AccountMeta, BorrowedBase58PublicKey, PoseidonResult, PublicKey, Utilities};
 use borsh::BorshSerialize;
 use core::fmt;
 use itertools::Itertools;
@@ -7,7 +7,7 @@ use serde::Serialize;
 #[derive(PartialEq, Clone, BorshSerialize, Serialize)]
 pub struct Instruction {
     /// Pubkey of the program that executes this instruction.
-    pub program_id: PoseidonPublicKey,
+    pub program_id: PublicKey,
     /// Metadata describing accounts that should be passed to the program.
     pub accounts: Vec<AccountMeta>,
     /// Opaque data passed to the program for its own interpretation.
@@ -29,7 +29,7 @@ impl Instruction {
         }
     }
 
-    pub fn add_program_id(&mut self, program_id: PoseidonPublicKey) -> &mut Self {
+    pub fn add_program_id(&mut self, program_id: PublicKey) -> &mut Self {
         self.program_id = program_id;
 
         self
@@ -39,7 +39,7 @@ impl Instruction {
         &mut self,
         program_id: BorrowedBase58PublicKey,
     ) -> PoseidonResult<&mut Self> {
-        let program_id = utils::base58_to_u32_array(&program_id)?;
+        let program_id = Utilities::base58_to_u32_array(&program_id)?;
 
         self.program_id = program_id;
 

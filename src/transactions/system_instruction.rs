@@ -1,4 +1,4 @@
-use crate::PoseidonPublicKey;
+use crate::PublicKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -16,7 +16,7 @@ pub enum SystemInstruction {
         space: u64,
 
         /// Address of program that will own the new account
-        owner: PoseidonPublicKey,
+        owner: PublicKey,
     },
 
     /// Assign account to a program
@@ -25,7 +25,7 @@ pub enum SystemInstruction {
     ///   0. `[WRITE, SIGNER]` Assigned account public key
     Assign {
         /// Owner program account
-        owner: PoseidonPublicKey,
+        owner: PublicKey,
     },
 
     /// Transfer lamports
@@ -45,7 +45,7 @@ pub enum SystemInstruction {
     ///                          and provided as account 0
     CreateAccountWithSeed {
         /// Base public key
-        base: PoseidonPublicKey,
+        base: PublicKey,
 
         /// String of ASCII chars, no longer than `Pubkey::MAX_SEED_LEN`
         seed: String,
@@ -57,7 +57,7 @@ pub enum SystemInstruction {
         space: u64,
 
         /// Owner program account address
-        owner: PoseidonPublicKey,
+        owner: PublicKey,
     },
 
     /// Consumes a stored nonce, replacing it with a successor
@@ -93,7 +93,7 @@ pub enum SystemInstruction {
     ///
     /// No signatures are required to execute this instruction, enabling derived
     /// nonce account addresses
-    InitializeNonceAccount(PoseidonPublicKey),
+    InitializeNonceAccount(PublicKey),
 
     /// Change the entity authorized to execute nonce instructions on the account
     ///
@@ -102,7 +102,7 @@ pub enum SystemInstruction {
     ///   1. `[SIGNER]` Nonce authority
     ///
     /// The `Pubkey` parameter identifies the entity to authorize
-    AuthorizeNonceAccount(PoseidonPublicKey),
+    AuthorizeNonceAccount(PublicKey),
 
     /// Allocate space in a (possibly new) account without funding
     ///
@@ -121,7 +121,7 @@ pub enum SystemInstruction {
     ///   1. `[SIGNER]` Base account
     AllocateWithSeed {
         /// Base public key
-        base: PoseidonPublicKey,
+        base: PublicKey,
 
         /// String of ASCII chars, no longer than `pubkey::MAX_SEED_LEN`
         seed: String,
@@ -130,7 +130,7 @@ pub enum SystemInstruction {
         space: u64,
 
         /// Owner program account
-        owner: PoseidonPublicKey,
+        owner: PublicKey,
     },
 
     /// Assign account to a program based on a seed
@@ -140,13 +140,13 @@ pub enum SystemInstruction {
     ///   1. `[SIGNER]` Base account
     AssignWithSeed {
         /// Base public key
-        base: PoseidonPublicKey,
+        base: PublicKey,
 
         /// String of ASCII chars, no longer than `pubkey::MAX_SEED_LEN`
         seed: String,
 
         /// Owner program account
-        owner: PoseidonPublicKey,
+        owner: PublicKey,
     },
 
     /// Transfer lamports from a derived address
@@ -163,6 +163,6 @@ pub enum SystemInstruction {
         from_seed: String,
 
         /// Owner to use to derive the funding account address
-        from_owner: PoseidonPublicKey,
+        from_owner: PublicKey,
     },
 }

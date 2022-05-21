@@ -1,4 +1,4 @@
-use crate::PoseidonPublicKey;
+use crate::PublicKey;
 use borsh::BorshSerialize;
 use core::fmt;
 use serde::Serialize;
@@ -6,7 +6,7 @@ use serde::Serialize;
 #[derive(PartialEq, Eq, Hash, Clone, BorshSerialize, Serialize)]
 pub struct AccountMeta {
     /// An account's public key.
-    pub pubkey: PoseidonPublicKey,
+    pub pubkey: PublicKey,
     /// True if an `Instruction` requires a `Transaction` signature matching `pubkey`.
     pub is_signer: bool,
     /// True if the account data or metadata may be mutated during program execution.
@@ -14,14 +14,14 @@ pub struct AccountMeta {
 }
 
 impl AccountMeta {
-    pub fn new(pubkey: PoseidonPublicKey, is_signer: bool) -> Self {
+    pub fn new(pubkey: PublicKey, is_signer: bool) -> Self {
         Self {
             pubkey,
             is_signer,
             is_writable: true,
         }
     }
-    pub fn new_readonly(pubkey: PoseidonPublicKey, is_signer: bool) -> Self {
+    pub fn new_readonly(pubkey: PublicKey, is_signer: bool) -> Self {
         Self {
             pubkey,
             is_signer,
