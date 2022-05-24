@@ -1,10 +1,25 @@
 use crate::{
-    AccountMeta, Instruction, PoseidonError, PoseidonResult, PublicKey, SystemInstruction,
-    MAX_SEED_LEN, PDA_MARKER,
+    AccountMeta, Instruction, PdaPublicKey, PoseidonError, PoseidonResult, PublicKey,
+    SystemInstruction, MAX_SEED_LEN, PDA_MARKER,
 };
 use core::fmt;
 use serde::{Deserialize, Serialize};
 
+/// ### Create a Program Derived Address and it's `Instruction`
+/// This struct builds a Solana Program Derived account from the given
+/// parameters yielding an instruction.
+///
+/// ```no_run
+/// #[derive(Serialize, Deserialize)]
+/// pub struct PdaBuilder {
+///     from_public_key: PublicKey,
+///     to_public_key: PublicKey,
+///     base: PublicKey,
+///     space: u64,
+///     owner: PublicKey,
+///     seed: String,
+///     lamports: u64,
+/// }
 #[derive(Serialize, Deserialize)]
 pub struct PdaBuilder {
     from_public_key: PublicKey,
@@ -65,7 +80,7 @@ impl PdaBuilder {
         self
     }
 
-    pub fn derive_public_key(&mut self) -> PoseidonResult<&mut Self> {
+    pub fn derive_public_key(&mut self) -> PoseidonResult<PdaPublicKey> {
         use sha2::{Digest, Sha256};
 
         if self.seed.len() > MAX_SEED_LEN {
@@ -88,10 +103,10 @@ impl PdaBuilder {
 
         self.to_public_key = sha256_pda;
 
-        Ok(self)
+        Ok(sha256_pda)
     }
 
-    pub fn build(self) -> PoseidonResult<Instruction> {
+    pub fn build(&self) -> PoseidonResult<Instruction> {
         let system_instruction = SystemInstruction::CreateAccountWithSeed {
             base: self.base,
             seed: self.seed.to_owned(),
