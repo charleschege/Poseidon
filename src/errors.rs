@@ -1,7 +1,5 @@
-use crate::{Base58PublicKey, ProgramLogEntry};
+use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use wasmium_errors::WasmiumError;
 
 pub type PoseidonResult<T> = Result<T, PoseidonError>;
 
@@ -26,6 +24,30 @@ pub enum PoseidonError {
     InvalidBase58ForPublicKey,
     /// Unable to convert a `slice` to an array of 32 bytes (`[u8; 32]`).
     ErrorConvertingToU832,
+    /// The program ID was not found in the provided instruction
+    ProgramIdNotFound,
+    /// The public key was not found in the accounts found in the `Message`
+    PublicKeyNotFoundInMessageAccounts,
+    /// The account index was not found in the `Accounts`
+    AccountIndexNotFoundInMessageAccounts,
+    /// Error decoding string as Base58 format
+    Bs58Decode(bs58::decode::Error),
+    /// Error encoding to base58 format
+    Bs58Encode(bs58::encode::Error),
+    /// The transaction was not found in the Cluster
+    TransactionNotFoundInCluster,
+}
+
+impl From<bs58::encode::Error> for PoseidonError {
+    fn from(error: bs58::encode::Error) -> Self {
+        PoseidonError::Bs58Encode(error)
+    }
+}
+
+impl From<bs58::decode::Error> for PoseidonError {
+    fn from(error: bs58::decode::Error) -> Self {
+        PoseidonError::Bs58Decode(error)
+    }
 }
 
 impl From<bincode::Error> for PoseidonError {
@@ -141,4 +163,21 @@ pub enum Minreq {
     /// please open an issue in the minreq crate repository, and include the string inside this
     /// error, as it can be used to locate the problem.
     Other(&'static str),
+}
+
+#[derive(
+    Debug, Serialize, Deserialize, BorshSerialize, BorshDeserialize, PartialEq, PartialOrd, Clone,
+)]
+pub struct RpcResponseJsonError {
+    jsonrpc: String,
+    error: JsonRpcError,
+    id: u8,
+}
+
+#[derive(
+    Debug, Serialize, Deserialize, BorshSerialize, BorshDeserialize, PartialEq, PartialOrd, Clone,
+)]
+pub struct JsonRpcError {
+    code: i16,
+    message: String,
 }
