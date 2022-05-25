@@ -97,6 +97,14 @@ impl TxSendOutcome {
 pub struct RpcResponse<T> {
     pub jsonrpc: String,
     pub id: u8,
+    pub result: T,
+}
+
+#[derive(Debug, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
+#[serde(rename = "camelCase")]
+pub struct RpcResponseWithResult<T> {
+    pub jsonrpc: String,
+    pub id: u8,
     pub result: RpcResult<T>,
 }
 
@@ -131,6 +139,17 @@ pub(crate) async fn request<T: serde::de::DeserializeOwned>(
     rpc.common_methods(body);
     let response = rpc.send().await?;
     let deser_response: RpcResponse<T> = serde_json::from_str(response.as_str()?)?;
+
+    Ok(deser_response)
+}
+
+pub(crate) async fn request_with_result<T: serde::de::DeserializeOwned>(
+    body: json::JsonValue,
+) -> PoseidonResult<RpcResponseWithResult<T>> {
+    let mut rpc = RpcClient::new();
+    rpc.common_methods(body);
+    let response = rpc.send().await?;
+    let deser_response: RpcResponseWithResult<T> = serde_json::from_str(response.as_str()?)?;
 
     Ok(deser_response)
 }
