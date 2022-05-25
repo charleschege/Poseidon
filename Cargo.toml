@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Wasmium Network Developers <hq@wasmium.network>"]
 license = "Apache-2.0"
 readme = "README.md"
+description = "A Simple to use Solana Client that has a fast compile time and cache friendly"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
