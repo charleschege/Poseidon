@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![doc = include_str!("../README.md")]
 
 mod clusters;
 pub use clusters::*;
@@ -10,8 +11,5 @@ mod errors;
 pub use errors::*;
 mod utilities;
 pub use utilities::*;
-
-fn main() {
-    let pda = PdaBuilder::new();
-    dbg!(&pda.build());
-}
+mod rpc_client;
+pub use rpc_client::*;
