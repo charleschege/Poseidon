@@ -1,6 +1,6 @@
 ### Poseidon - god of the Solana sea 😂
 
-Poseidon is a Minimal Solana Client library that aims to be fast to compile and cache friendly. 
+`poseidon-client` is a Minimal Solana Client library that aims to be fast to compile and cache friendly. 
 
 Currently, not all RPC methods are implemented. If you are looking for a feature rich Solana RPC library, take a look at Solana Anchor library or the official Solana SDK and Solana-client.
 
@@ -28,7 +28,7 @@ First, generate an Ed25519 Public and Private Keypair or import one. Use the `ed
 [dependencies]
 rand = "0.7"
 ed25519-dalek = "*" # add latest version
-poseidon = "*" # add latest version
+poseidon-client = "*" # add latest version
 ```
 
 Or simple use `cargo-edit` crate
@@ -82,7 +82,7 @@ pub struct PoseidonTestStore {
 ##### Get the Minimum rent needed to pay storage costs for 2 years
 
 ```rust
-use poseidon::GetMinimumBalanceForRentExemption;
+use poseidon_client::GetMinimumBalanceForRentExemption;
 
 let two_year_rent =
             GetMinimumBalanceForRentExemption::process::<PoseidonTestStore>().await?;
@@ -91,7 +91,7 @@ let two_year_rent =
 ##### Creating a Program Derived Account
 
 ```rust
-use poseidon::{SYSTEM_PROGRAM_ID, PoseidonTestStore, PdaBuilder};
+use poseidon_client::{SYSTEM_PROGRAM_ID, PoseidonTestStore, PdaBuilder};
 
 // Decide on the seed to create the PDA account for the program
 let seed  = "EXAMPLE_HELLO";
@@ -114,7 +114,7 @@ let pda_instruction = pda.build()?;
 ##### Building a Message
 
 ```rust
-use poseidon::MessageBuilder;
+use poseidon_client::MessageBuilder;
 
 let mut message_builder = MessageBuilder::new();
 message_builder
@@ -129,7 +129,7 @@ message.build(message_builder)?;
 ##### Get Latest Blockhash
 
 ```rust
-use poseidon::GetLatestBlockhash;
+use poseidon_client::GetLatestBlockhash;
 
 let blockhash = GetLatestBlockhash::as_bytes(Commitment::Finalized).await?;
 ```
@@ -138,7 +138,7 @@ let blockhash = GetLatestBlockhash::as_bytes(Commitment::Finalized).await?;
 
 ```rust
 use ed25519_dalek::Signer;
-use poseidon::Transaction;
+use poseidon_client::Transaction;
 
 // First update the `recent_blockhash` field of the `Message` with 
 // a recent blockhash so that transactions will not fail.
@@ -158,7 +158,7 @@ transaction.add_signature(signature.to_bytes());
 ##### Send a transaction to a Solana RPC Node
 
 ```rust
-use poseidon::{RpcClient, TxSendOutcome};
+use poseidon_client::{RpcClient, TxSendOutcome};
 
 let mut rpc = RpcClient::new();
 let send_tx_response = rpc.prepare_transaction(&transaction)?.send().await?;
@@ -168,7 +168,7 @@ let send_tx_outcome = TxSendOutcome::parse_tx(send_tx_response);
 ##### Get a Transaction using it's hash
 
 ```rust
-use poseidon::GetTransaction;
+use poseidon_client::GetTransaction;
 
 let base58_signature = "44stjcK4f7RC7KNCorh9gzhQagpYoT9Tq775UFtYbn5gepRocHEeXrtG2JmzgTYKCx83pfBhWHiwLa6sC7f8Ruft";
 let tx_resp = GetTransaction::process(sign).await?;

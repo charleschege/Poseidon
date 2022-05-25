@@ -1,5 +1,5 @@
 [package]
-name = "poseidon"
+name = "poseidon-client"
 version = "0.3.0"
 edition = "2021"
 authors = ["Wasmium Network Developers <hq@wasmium.network>"]
