@@ -106,6 +106,10 @@ impl PdaBuilder {
         Ok(sha256_pda)
     }
 
+    pub fn pda_pk_base58(&self) -> String {
+        bs58::encode(&self.to_public_key).into_string()
+    }
+
     pub fn build(&self) -> PoseidonResult<Instruction> {
         let system_instruction = SystemInstruction::CreateAccountWithSeed {
             base: self.base,
