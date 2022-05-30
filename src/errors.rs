@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use core::fmt;
 use serde::{Deserialize, Serialize};
 
 pub type PoseidonResult<T> = Result<T, PoseidonError>;
@@ -36,6 +37,14 @@ pub enum PoseidonError {
     Bs58Encode(bs58::encode::Error),
     /// The transaction was not found in the Cluster
     TransactionNotFoundInCluster,
+}
+
+impl std::error::Error for PoseidonError {}
+
+impl fmt::Display for PoseidonError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl From<bs58::encode::Error> for PoseidonError {
