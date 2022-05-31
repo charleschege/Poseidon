@@ -80,7 +80,7 @@ impl fmt::Debug for Instruction {
         f.debug_struct("Instruction")
             .field("program_id", &bs58::encode(&self.program_id).into_string())
             .field("accounts", &self.accounts)
-            .field("data", &blake3::hash(&self.data).to_hex())
+            .field("data", &hex::encode(&self.data))
             .finish()
     }
 }
