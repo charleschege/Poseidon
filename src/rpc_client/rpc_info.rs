@@ -99,4 +99,18 @@ impl GetMinimumBalanceForRentExemption {
 
         Ok(request::<u64>(body).await?)
     }
+    pub async fn process_precalculated(size: usize) -> PoseidonResult<RpcResponse<u64>> {
+        let size = size as u64;
+
+        let body: json::JsonValue = json::object! {
+            jsonrpc: "2.0",
+            id: 1u8,
+            method: "getMinimumBalanceForRentExemption",
+            params: json::array![
+                size
+            ]
+        };
+
+        Ok(request::<u64>(body).await?)
+    }
 }

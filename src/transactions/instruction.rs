@@ -1,10 +1,10 @@
 use crate::{AccountMeta, BorrowedBase58PublicKey, PoseidonResult, PublicKey, Utilities};
-use borsh::BorshSerialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use core::fmt;
 use itertools::Itertools;
 use serde::Serialize;
 
-#[derive(PartialEq, Clone, BorshSerialize, Serialize)]
+#[derive(PartialEq, Clone, BorshSerialize, BorshDeserialize, Serialize)]
 pub struct Instruction {
     /// Pubkey of the program that executes this instruction.
     pub program_id: PublicKey,

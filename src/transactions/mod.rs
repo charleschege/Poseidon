@@ -30,3 +30,6 @@ pub use transaction::*;
 
 mod errors;
 pub use errors::*;
+
+mod ed25519_program;
+pub use ed25519_program::*;

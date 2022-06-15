@@ -1,9 +1,9 @@
 use crate::PublicKey;
-use borsh::BorshSerialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use core::fmt;
 use serde::Serialize;
 
-#[derive(PartialEq, Eq, Hash, Clone, BorshSerialize, Serialize)]
+#[derive(PartialEq, Eq, Hash, Clone, BorshSerialize, BorshDeserialize, Serialize)]
 pub struct AccountMeta {
     /// An account's public key.
     pub pubkey: PublicKey,
