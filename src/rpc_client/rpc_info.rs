@@ -1,6 +1,6 @@
 use crate::{
-    request, request_with_result, Commitment, PoseidonError, PoseidonResult, RpcResponse,
-    RpcResponseWithResult,
+    request, request_with_result, BorrowedBase58PublicKey, Commitment, PoseidonError,
+    PoseidonResult, RpcResponse, RpcResponseWithResult,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
@@ -112,5 +112,35 @@ impl GetMinimumBalanceForRentExemption {
         };
 
         Ok(request::<u64>(body).await?)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAccountInfo {
+    data: (String, String), // (PublicKey String, encoding)
+    executable: bool,
+    lamports: u64,
+    owner: String, // Base58 formatted PublicKey
+    rent_epoch: u64,
+}
+
+impl GetAccountInfo {
+    pub async fn process<'pn>(
+        public_key: BorrowedBase58PublicKey<'pn>,
+    ) -> PoseidonResult<RpcResponseWithResult<GetAccountInfo>> {
+        let body: json::JsonValue = json::object! {
+            jsonrpc: "2.0",
+            id: 1u8,
+            method: "getAccountInfo",
+            params: [
+                public_key,
+                {
+                    "encoding": "base58"
+                }
+            ]
+        };
+
+        Ok(request_with_result::<GetAccountInfo>(body).await?)
     }
 }

@@ -129,6 +129,7 @@ pub struct RpcResult<T> {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct Context {
+    pub api_version: String,
     pub slot: u64,
 }
 
@@ -149,6 +150,7 @@ pub(crate) async fn request_with_result<T: serde::de::DeserializeOwned>(
     let mut rpc = RpcClient::new();
     rpc.common_methods(body);
     let response = rpc.send().await?;
+    dbg!(&response.as_str()?);
     let deser_response: RpcResponseWithResult<T> = serde_json::from_str(response.as_str()?)?;
 
     Ok(deser_response)
