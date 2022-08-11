@@ -76,6 +76,26 @@ impl GetFees {
 
 #[derive(Debug, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RequestAirdrop;
+
+impl RequestAirdrop {
+    pub async fn process<'pn>(
+        public_key: BorrowedBase58PublicKey<'pn>,
+        lamports: u64,
+    ) -> PoseidonResult<RpcResponse<String>> {
+        let body: json::JsonValue = json::object! {
+            jsonrpc: "2.0",
+            id: 1u8,
+            method: "requestAirdrop",
+            params: json::array![public_key, lamports]
+        };
+
+        Ok(request::<String>(body).await?)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FeeCalculator {
     pub lamports_per_signature: u64,
 }
