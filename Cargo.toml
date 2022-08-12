@@ -1,6 +1,6 @@
 [package]
 name = "poseidon-client"
-version = "0.5.4"
+version = "0.6.0"
 edition = "2021"
 authors = ["Wasmium Network Developers <hq@wasmium.network>"]
 license = "Apache-2.0"
