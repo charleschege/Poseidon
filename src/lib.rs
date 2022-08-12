@@ -21,9 +21,14 @@ mod sanity_checks {
     #[test]
     fn request_airdrop() {
         smol::block_on(async {
-            let airdrop =
-                RequestAirdrop::process("Dvkg2NEkdfqpHrwemwPAuyqoFEZENM7V2DduJRK7QMKr", 2000000000)
-                    .await;
+            let public_key = [
+                192, 17, 104, 49, 241, 236, 54, 229, 158, 101, 123, 229, 105, 118, 82, 193, 98,
+                254, 160, 8, 178, 16, 110, 239, 141, 143, 116, 88, 155, 176, 244, 205,
+            ];
+            let airdrop = RequestAirdrop::new(public_key)
+                .add_lamports(2)
+                .process()
+                .await;
 
             assert!(airdrop.is_ok());
         })

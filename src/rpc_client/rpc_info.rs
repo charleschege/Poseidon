@@ -1,9 +1,11 @@
 use crate::{
     request, request_with_result, BorrowedBase58PublicKey, Commitment, PoseidonError,
-    PoseidonResult, RpcResponse, RpcResponseWithResult,
+    PoseidonResult, PublicKey, RpcResponse, RpcResponseWithResult,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
+
+pub const LAMPORT: u64 = 1_000_000_000;
 
 #[derive(Debug, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,13 +78,37 @@ impl GetFees {
 
 #[derive(Debug, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RequestAirdrop;
+pub struct RequestAirdrop {
+    public_key: PublicKey,
+    lamports: u8,
+    commitment: Commitment,
+}
 
 impl RequestAirdrop {
-    pub async fn process<'pn>(
-        public_key: BorrowedBase58PublicKey<'pn>,
-        lamports: u64,
-    ) -> PoseidonResult<RpcResponse<String>> {
+    pub fn new(public_key: PublicKey) -> Self {
+        RequestAirdrop {
+            public_key,
+            lamports: 2,
+            commitment: Commitment::Finalized,
+        }
+    }
+
+    pub fn add_lamports(&mut self, lamports: u8) -> &mut Self {
+        self.lamports = lamports;
+
+        self
+    }
+
+    pub fn change_commitment(&mut self, commitment: Commitment) -> &mut Self {
+        self.commitment = commitment;
+
+        self
+    }
+
+    pub async fn process(&self) -> PoseidonResult<RpcResponse<String>> {
+        let public_key = bs58::encode(&self.public_key).into_string();
+        let lamports = self.lamports as u64 * LAMPORT;
+
         let body: json::JsonValue = json::object! {
             jsonrpc: "2.0",
             id: 1u8,
