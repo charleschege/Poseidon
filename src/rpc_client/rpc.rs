@@ -1,4 +1,4 @@
-use crate::{Cluster, PoseidonResult, RpcTxError, SendTxResponse, Transaction};
+use crate::{Cluster, Commitment, PoseidonResult, RpcTxError, SendTxResponse, Transaction};
 use borsh::{BorshDeserialize, BorshSerialize};
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,7 @@ pub struct RpcClient {
     cluster: Cluster,
     headers: Vec<(String, String)>,
     body: JsonValue,
+    commitment: Commitment,
 }
 
 impl RpcClient {
@@ -16,6 +17,7 @@ impl RpcClient {
             cluster: Cluster::default(),
             headers: vec![("Content-Type".to_owned(), "application/json".to_owned())],
             body: JsonValue::Null,
+            commitment: Commitment::Finalized,
         }
     }
 
@@ -31,6 +33,12 @@ impl RpcClient {
         self
     }
 
+    pub fn add_commitment(&mut self, commitment: Commitment) -> &mut Self {
+        self.commitment = commitment;
+
+        self
+    }
+
     pub fn common_methods(&mut self, body: JsonValue) -> &mut Self {
         self.add_body(body);
 
@@ -38,12 +46,15 @@ impl RpcClient {
     }
 
     pub fn prepare_transaction(&mut self, transaction: &Transaction) -> PoseidonResult<&mut Self> {
+        let commitment: &str = self.commitment.into();
+
         let body = json::object! {
             jsonrpc: "2.0",
             id: 1u8,
             method: "sendTransaction",
             params: json::array![
-                transaction.to_base58()?
+                transaction.to_base58()?,
+                json::object!{commitment: commitment }
             ]
         };
 
