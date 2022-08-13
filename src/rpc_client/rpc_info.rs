@@ -164,11 +164,11 @@ impl GetMinimumBalanceForRentExemption {
 #[derive(Debug, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAccountInfo {
-    data: (String, String), // (PublicKey String, encoding)
-    executable: bool,
-    lamports: u64,
-    owner: String, // Base58 formatted PublicKey
-    rent_epoch: u64,
+    pub data: (String, String), // (PublicKey String, encoding)
+    pub executable: bool,
+    pub lamports: u64,
+    pub owner: String, // Base58 formatted PublicKey
+    pub rent_epoch: u64,
 }
 
 impl GetAccountInfo {
