@@ -2,22 +2,44 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use generic_array::{typenum::U64, GenericArray};
 use serde::{Deserialize, Serialize};
 
-pub type PublicKey = [u8; 32];
-pub type RecentBlockHash = [u8; 32];
-pub type Signature = GenericArray<u8, U64>;
-pub type Base58PublicKey = String;
-pub type Base58SecretKey = String;
-pub type Base58TxSignature = String;
-pub type Base58Signature = String;
-pub type Base58BlockHash = String;
-pub type BorrowedBase58PublicKey<'pn> = &'pn str;
-pub type ProgramID = String;
-pub type TxPayer = String;
-pub type Base58Value<'a> = &'a str;
-pub type ProgramLogEntry = String;
-pub type PdaPublicKey = [u8; 32];
-pub type UnixTimestamp = i64;
+/// The byte representation of an Ed25519 Signature. Stored as a `GenericArray`
+/// since Rust dosen't yet support `u256` primitive due to limitations in LLVM compiler.
+pub type SignatureGenericArray = GenericArray<u8, U64>;
 
+/// Configures the Solana RPC cluster to connect to
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, BorshSerialize, BorshDeserialize)]
+pub enum Cluster {
+    /// A locally run Solana test validator
+    LocalNet,
+    /// Connect to the developer cluster
+    DevNet,
+    /// Connect to the testnet cluster for staging
+    TestNet,
+    /// Connect to the production cluster
+    MainNetBeta,
+}
+
+impl Cluster {
+    /// Convert the cluster selected to a URL
+    pub fn url(&self) -> &'static str {
+        match self {
+            Cluster::LocalNet => "https://127.0.0.1:8899",
+            Cluster::DevNet => "https://api.devnet.solana.com",
+            Cluster::TestNet => "https://api.testnet.solana.com",
+            Cluster::MainNetBeta => "https://api.mainnet-beta.solana.com",
+        }
+    }
+}
+
+impl Default for Cluster {
+    fn default() -> Self {
+        Cluster::DevNet
+    }
+}
+
+/// The commitment metric aims to give clients a measure of the network confirmation
+/// and stake levels on a particular block.
+/// It implements `From<&str>` and `Into<&str>`
 #[derive(
     Debug,
     Serialize,
@@ -32,10 +54,14 @@ pub type UnixTimestamp = i64;
     Clone,
 )]
 pub enum Commitment {
+    /// A block is processed by RPC servers
     Processed,
+    /// A block is has been confirmed
     Confirmed,
+    /// A block has been finalized
     Finalized,
-    Unspecified,
+    /// The commitment level provided is invalid
+    InvalidCommitment,
 }
 
 impl Default for Commitment {
@@ -50,7 +76,7 @@ impl From<&str> for Commitment {
             "processed" => Commitment::Processed,
             "confirmed" => Commitment::Confirmed,
             "finalized" => Commitment::Finalized,
-            _ => Commitment::Unspecified,
+            _ => Commitment::InvalidCommitment,
         }
     }
 }
@@ -61,7 +87,7 @@ impl Into<&str> for Commitment {
             Commitment::Processed => "processed",
             Commitment::Confirmed => "confirmed",
             Commitment::Finalized => "finalized",
-            Commitment::Unspecified => "unspecified",
+            Commitment::InvalidCommitment => "invalid_commitment",
         }
     }
 }
